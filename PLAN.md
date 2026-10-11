@@ -43,7 +43,6 @@ You already have working calls to `search_car` / `search_mc`. Finish this phase 
 - Turn the fetch logic into a function, e.g. `fetch_all_cars(location, price_from, price_to) -> list[dict]`, that pages through results (the commented-out `while` loop in `blocky.py` is your starting point).
 - Handle both verticals (car, mc) with one shared paging helper — don't duplicate the loop.
 - Respect the API's limits: 50 results/page, 50 pages max per query. If a query's `match_count` exceeds 2500, split by price range and fetch each range separately.
-- Strip personal data at this stage already: drop `regno`, `chassis_number`, `coordinates`, seller details before anything touches disk.
 - Save raw (but scrubbed) results to `data/*.json` for now, so you can inspect the shape without a DB.
 
 **Done when:** running one command fetches all current car + mc listings for your search params and writes clean JSON to `data/`.
@@ -126,7 +125,6 @@ Point the frontend at the FastAPI base URL via an env var (`VITE_API_URL`) so de
 ## Cross-cutting notes
 
 - **Secrets:** DB credentials go in `.env`, loaded via `python-dotenv` or `pydantic-settings` — never hardcoded, never committed. Add `.env` to `.gitignore` if it isn't already.
-- **Privacy:** the "don't store personal data" rule from the README applies at every layer — scrub at fetch time (Phase 1), so it never reaches normalization, DB, or API.
 - **Testing as you go:** you don't need a full test suite, but a quick script or two per phase (fetch → file, file → normalized, normalized → DB) will save you from debugging three layers at once later.
 
 Work through the phases roughly in order — each one assumes the previous is working. Ask when you get stuck on a specific step rather than a whole phase; it'll be easier to point you at the right concept.
