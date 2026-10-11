@@ -7,7 +7,7 @@ from pathlib import Path
 
 api = BlocketAPI()
 locs = [Location.SKANE]
-
+EXCLUDE = ["privatleasing"]
 car_ads = []
 mc_ads = []
 
@@ -52,16 +52,23 @@ def fetch_range_cars(min_price, max_price, ads):
             page=page
         )
         car_ads.extend(res["docs"])
-    return
+    save_cars()
+
+def is_excluded(ad):
+    text = f"{ad.get('heading')} {ad.get('model_specification', '')}".lower()
+    return any(word in text for word in EXCLUDE)
 
 def save_cars():
-    print(len(car_ads))
+    print(f'Before filter: {len(car_ads)}')
+    car_ads[:]=[ad for ad in car_ads if not is_excluded(ad)]
+    print(f'After filter: {len(car_ads)}')
+
     Path("data").mkdir(exist_ok = True)
     Path("data/cars.json").write_text(
         json.dumps(car_ads, indent=2, ensure_ascii = False), encoding="utf-8"
     )
 
-def get_mcs(min_price = 0, max_price = 1000):
+def get_mcs(min_price = 0, max_price = 45000):
     '''Fill up car_ads with ads based on filter criteria'''
 
     mcs = api.search_mc(
@@ -103,11 +110,14 @@ def fetch_range_mcs(min_price, max_price, ads):
             page=page
         )
         mc_ads.extend(res["docs"])
-    return
+    save_mcs()
 
 
 def save_mcs():
-    print(len(mc_ads))
+    print(f'Before filter: {len(mc_ads)}')
+    mc_ads[:]=[ad for ad in mc_ads if not is_excluded(ad)]
+    print(f'After filter: {len(mc_ads)}')
+   
     Path("data").mkdir(exist_ok = True)
     Path("data/mcs.json").write_text(
     json.dumps(mc_ads, indent=2, ensure_ascii = False), encoding="utf-8"
