@@ -1,5 +1,6 @@
 from pydantic import BaseModel
 
+
 class Listing(BaseModel):
     id: int
     url: str

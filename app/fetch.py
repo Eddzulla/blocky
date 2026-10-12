@@ -7,11 +7,11 @@ from pathlib import Path
 
 api = BlocketAPI()
 locs = [Location.SKANE]
-EXCLUDE = ["privatleasing"]
+EXCLUDE = ["privatleasing", "privatleasa", "p-leasa", "p-leasing","lease","leasing","fullserviceleasing!", "fullserviceleasing", "leasingkampanj","företagsleasing"]
 car_ads = []
 mc_ads = []
 
-def get_cars(min_price = 0, max_price = 10000):
+def get_cars(min_price = 0, max_price = 40000):
     '''Fill up car_ads with ads based on filter criteria'''
 
     cars = api.search_car(
@@ -33,13 +33,14 @@ def get_cars(min_price = 0, max_price = 10000):
         return
     
     fetch_range_cars(min_price, max_price, cars)
+    
 
 def fetch_range_cars(min_price, max_price, ads):
     '''Page through one price range that has 2500 reslts or fewer'''
     print(f"Fetching cars in range: {min_price} - {max_price}")
     
     last = ads["metadata"]["paging"]["last"]
-    print(f"Fetchin page: 1/{last}")
+    print(f"Fetching page: 1/{last}")
     car_ads.extend(ads["docs"])
     
     for page in range(2, last + 1):
@@ -52,7 +53,7 @@ def fetch_range_cars(min_price, max_price, ads):
             page=page
         )
         car_ads.extend(res["docs"])
-    save_cars()
+    
 
 def is_excluded(ad):
     text = f"{ad.get('heading')} {ad.get('model_specification', '')}".lower()
@@ -68,7 +69,7 @@ def save_cars():
         json.dumps(car_ads, indent=2, ensure_ascii = False), encoding="utf-8"
     )
 
-def get_mcs(min_price = 0, max_price = 45000):
+def get_mcs(min_price = 0, max_price = 50000):
     '''Fill up car_ads with ads based on filter criteria'''
 
     mcs = api.search_mc(
@@ -90,6 +91,7 @@ def get_mcs(min_price = 0, max_price = 45000):
         return
     
     fetch_range_mcs(min_price, max_price, mcs)
+    
 
     
 def fetch_range_mcs(min_price, max_price, ads):
@@ -110,7 +112,7 @@ def fetch_range_mcs(min_price, max_price, ads):
             page=page
         )
         mc_ads.extend(res["docs"])
-    save_mcs()
+    
 
 
 def save_mcs():
