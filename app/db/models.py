@@ -9,6 +9,7 @@ class Listing(Base):
     __tablename__= "listings"
 
     id: Mapped[int] = mapped_column(BigInteger, primary_key=True, autoincrement=False)
+    vertical: Mapped[str] = mapped_column(index=True)
     url: Mapped[str]
     location: Mapped[str]
     price_sek: Mapped[int | None]

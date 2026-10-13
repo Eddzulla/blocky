@@ -3,6 +3,7 @@ from pydantic import BaseModel
 
 class Listing(BaseModel):
     id: int
+    vertical: str
     url: str
     location: str
     price_sek: int | None
@@ -12,10 +13,11 @@ class Listing(BaseModel):
     model: str | None
     model_specification: str | None
 
-def normalize(raw: dict) -> Listing:
+def normalize(raw: dict, vertical: str) -> Listing:
     mileage = raw.get("mileage")
     return Listing(
         id=raw["id"],
+        vertical = vertical,
         url=raw["canonical_url"],
         location=raw["location"],
         price_sek=(raw.get("price") or {}).get("amount"),
