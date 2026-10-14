@@ -1,6 +1,5 @@
 from pydantic import BaseModel
 
-
 class Listing(BaseModel):
     id: int
     vertical: str
@@ -27,3 +26,7 @@ def normalize(raw: dict, vertical: str) -> Listing:
         model=raw.get("model"),
         model_specification=raw.get("model_specification"),
     )
+
+def to_listings(raw_ads: list, vertical: str):
+    by_id = {ad["id"]: ad for ad in raw_ads}
+    return [normalize(ad, vertical) for ad in by_id.values()]

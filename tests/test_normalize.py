@@ -8,7 +8,7 @@ raw_ads = json.loads(Path("data/cars.json").read_text(encoding="utf-8"))
 listings, errors = [], 0
 for raw in raw_ads:
     try:
-        listings.append(normalize(raw))
+        listings.append(normalize(raw, "car"))
     except (ValidationError, KeyError) as e:
         errors += 1
         print(raw.get("id"), e)

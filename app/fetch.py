@@ -3,6 +3,7 @@ from blocket_api.constants import Location
 import time
 import json
 from pathlib import Path
+import random
 
 
 api = BlocketAPI()
@@ -10,6 +11,7 @@ locs = [Location.SKANE]
 EXCLUDE = ["privatleasing", "privatleasa", "p-leasa", "p-leasing","lease","leasing","fullserviceleasing!", "fullserviceleasing", "leasingkampanj","företagsleasing"]
 car_ads = []
 mc_ads = []
+
 
 def get_cars(min_price = 0, max_price = 40000):
     '''Fill up car_ads with ads based on filter criteria'''
@@ -45,7 +47,8 @@ def fetch_range_cars(min_price, max_price, ads):
     
     for page in range(2, last + 1):
         print(f"Fetching page: {page}/{last}")
-        time.sleep(2.35)
+        print(random.random()+1)
+        time.sleep(delay)
         res = api.search_car(
             locations=locs,
             price_from = min_price,
@@ -59,15 +62,17 @@ def is_excluded(ad):
     text = f"{ad.get('heading')} {ad.get('model_specification', '')}".lower()
     return any(word in text for word in EXCLUDE)
 
+
 def save_cars():
     print(f'Before filter: {len(car_ads)}')
-    car_ads[:]=[ad for ad in car_ads if not is_excluded(ad)]
+    car_ads[:]=filter_ads(car_ads)
     print(f'After filter: {len(car_ads)}')
 
     Path("data").mkdir(exist_ok = True)
     Path("data/cars.json").write_text(
         json.dumps(car_ads, indent=2, ensure_ascii = False), encoding="utf-8"
     )
+
 
 def get_mcs(min_price = 0, max_price = 50000):
     '''Fill up car_ads with ads based on filter criteria'''
@@ -91,7 +96,6 @@ def get_mcs(min_price = 0, max_price = 50000):
         return
     
     fetch_range_mcs(min_price, max_price, mcs)
-    
 
     
 def fetch_range_mcs(min_price, max_price, ads):
@@ -112,12 +116,14 @@ def fetch_range_mcs(min_price, max_price, ads):
             page=page
         )
         mc_ads.extend(res["docs"])
-    
+
+def filter_ads(ads) -> list:
+    return [ad for ad in ads if not is_excluded(ad)]
 
 
 def save_mcs():
     print(f'Before filter: {len(mc_ads)}')
-    mc_ads[:]=[ad for ad in mc_ads if not is_excluded(ad)]
+    mc_ads[:]=filter_ads(mc_ads)
     print(f'After filter: {len(mc_ads)}')
    
     Path("data").mkdir(exist_ok = True)
