@@ -47,8 +47,7 @@ def fetch_range_cars(min_price, max_price, ads):
     
     for page in range(2, last + 1):
         print(f"Fetching page: {page}/{last}")
-        print(random.random()+1)
-        time.sleep(delay)
+        time.sleep(random.random()+1)
         res = api.search_car(
             locations=locs,
             price_from = min_price,
