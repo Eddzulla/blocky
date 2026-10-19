@@ -1,4 +1,4 @@
-from blocket_api import BlocketAPI, CarAd, CarModel
+from blocket_api import BlocketAPI
 from blocket_api.constants import Location
 import time
 import json
@@ -11,11 +11,11 @@ locs = [Location.SKANE]
 EXCLUDE = ["privatleasing", "privatleasa", "p-leasa", "p-leasing","lease","leasing","fullserviceleasing!", "fullserviceleasing", "leasingkampanj","företagsleasing"]
 car_ads = []
 mc_ads = []
+first_fetch = False
 
-
-def get_cars(min_price = 0, max_price = 40000):
+def get_cars(min_price = 0, max_price = 10):
     '''Fill up car_ads with ads based on filter criteria'''
-
+    
     cars = api.search_car(
         locations=locs,
         price_from = min_price,
@@ -26,18 +26,22 @@ def get_cars(min_price = 0, max_price = 40000):
     if total < 1:
             print("No ads found, cancelling fetch.")
             return
+  
+    first_fetch = True
+    if first_fetch:
+        print(f"Found {total} ads. Will crawl {(total // 2500) + 1} times.")
+        first_fetch = False
 
-    print(f"Found {total} ads. Will crawl {(total // 2500) + 1} times.")
     if total > 2500 and max_price - min_price > 1:
         mid = (max_price + min_price) // 2
         get_cars(min_price, mid)
         get_cars(mid+1, max_price)
         return
     
-    fetch_range_cars(min_price, max_price, cars)
+    _fetch_range_cars(min_price, max_price, cars)
     
 
-def fetch_range_cars(min_price, max_price, ads):
+def _fetch_range_cars(min_price, max_price, ads):
     '''Page through one price range that has 2500 reslts or fewer'''
     print(f"Fetching cars in range: {min_price} - {max_price}")
     
@@ -57,23 +61,12 @@ def fetch_range_cars(min_price, max_price, ads):
         car_ads.extend(res["docs"])
     
 
-def is_excluded(ad):
+def _is_excluded(ad):
     text = f"{ad.get('heading')} {ad.get('model_specification', '')}".lower()
     return any(word in text for word in EXCLUDE)
 
 
-def save_cars():
-    print(f'Before filter: {len(car_ads)}')
-    car_ads[:]=filter_ads(car_ads)
-    print(f'After filter: {len(car_ads)}')
-
-    Path("data").mkdir(exist_ok = True)
-    Path("data/cars.json").write_text(
-        json.dumps(car_ads, indent=2, ensure_ascii = False), encoding="utf-8"
-    )
-
-
-def get_mcs(min_price = 0, max_price = 50000):
+def get_mcs(min_price = 0, max_price = 1000):
     '''Fill up car_ads with ads based on filter criteria'''
 
     mcs = api.search_mc(
@@ -94,10 +87,9 @@ def get_mcs(min_price = 0, max_price = 50000):
         get_mcs(mid+1, max_price)
         return
     
-    fetch_range_mcs(min_price, max_price, mcs)
-
+    _fetch_range_mcs(min_price, max_price, mcs)
     
-def fetch_range_mcs(min_price, max_price, ads):
+def _fetch_range_mcs(min_price, max_price, ads):
     '''Page through one price range that has 2500 reslts or fewer'''
     print(f"Fetching MCs in range: {min_price} - {max_price}")
 
@@ -115,19 +107,16 @@ def fetch_range_mcs(min_price, max_price, ads):
             page=page
         )
         mc_ads.extend(res["docs"])
+        save_data()
 
 def filter_ads(ads) -> list:
-    return [ad for ad in ads if not is_excluded(ad)]
+    filtered = [ad for ad in ads if not _is_excluded(ad)]
+    return filtered
 
-
-def save_mcs():
-    print(f'Before filter: {len(mc_ads)}')
-    mc_ads[:]=filter_ads(mc_ads)
-    print(f'After filter: {len(mc_ads)}')
-   
-    Path("data").mkdir(exist_ok = True)
-    Path("data/mcs.json").write_text(
-    json.dumps(mc_ads, indent=2, ensure_ascii = False), encoding="utf-8"
+def save_data(ads: list, vertical: str):
+    path = Path("data") / f"{vertical}.json"
+    path.parent.mkdir(exist_ok=True)
+    path.write_text(
+        json.dumps(ads, indent=2, ensure_ascii=False), encoding="utf-8"
     )
-
-
+    print(f'Saved {len(ads)} ads to {path}')

@@ -13,9 +13,9 @@ For setup and day-to-day commands, see [README.md](README.md).
 | 0. Project structure | ✅ Done (except `api/`, `scheduler.py`, `frontend/`, `requirements.txt`) |
 | 1. Fetch and save to JSON | ✅ Done |
 | 2. Normalize with Pydantic | ✅ Done |
-| 3. Store in Postgres | 🟡 Upsert works. **Next:** connect fetch → normalize → upsert in one command |
-| 4. Schedule updates | ⬜ |
-| 5. FastAPI endpoints | ⬜ |
+| 3. Store in Postgres | 🟡 `python -m app.pipeline` runs fetch → filter → normalize → upsert. **Next:** finish the JSON debug output in `fetch.py` and verify that a second run keeps the row count and `first_seen` |
+| 4. Schedule updates | ⏸️ Postponed. The pipeline is run manually for now |
+| 5. FastAPI endpoints | 🟡 **Next** |
 | 6. React UI | ⬜ |
 
 **Current data:** 2,212 cars and 419 motorcycles (Skåne) in `listings`.
@@ -25,8 +25,8 @@ For setup and day-to-day commands, see [README.md](README.md).
 ## How it works today
 
 ```
-python blocky.py      → app/fetch.py: search Blocket → filter → data/cars.json, data/mcs.json
-python -m app.load    → app/load.py: read JSON → dedupe by id → normalize() → upsert_listings() → commit
+python -m app.pipeline → fetch.get_cars/get_mcs → filter_ads → to_listings (dedupe + normalize) → upsert_listings → commit
+python blocky.py       → fetch only (debugging); JSON output to data/ is being reworked
 ```
 
 - **Fetch (`app/fetch.py`):** `blocket-api` library, `locations=[Location.SKANE]`. Recursive price-range splitting when `match_count > 2500`; paging with a 2.35 s delay. Page 1 comes from the first request; the loop starts at page 2.
@@ -46,7 +46,8 @@ python -m app.load    → app/load.py: read JSON → dedupe by id → normalize(
 - **One `listings` table for cars and motorcycles**, told apart by `vertical`. Blocket IDs don't overlap between categories.
 - **Price history is postponed.** Only `listings` exists for now. When it's added: a `price_history` table (`listing_id` FK, `price_sek`, `observed_at`) with one row per *change*, not per fetch, created through a new Alembic migration.
 - **Search-result fields only, for now.** Horsepower, number of owners, colour and similar fields are only on the listing page. `blocket-api`'s `get_ad()` currently doesn't return them (its spec parser no longer matches Blocket's HTML). If needed later, parse the `<dt>`/`<dd>` pairs with BeautifulSoup, and only for listings not seen before.
-- **Docker for Postgres**, locally and later on a Raspberry Pi 5. The Windows Postgres install was removed because it conflicted on port 5432.
+- **Runs on Windows 11 for now; the production host is undecided.** Development and scheduled runs happen on the Windows PC (PowerShell, Docker Desktop, a `.venv`). Keep everything portable so the choice can wait: configuration in `.env`, Postgres in Docker, and no hard-coded Windows paths in Python code.
+- **Docker for Postgres** (Docker Desktop on Windows). The Windows Postgres install was removed because it conflicted on port 5432.
 - **Scope kept small:** Skåne, with capped price ranges (cars up to 40,000 kr, motorcycles up to 50,000 kr). Blocket's `robots.txt` prohibits automated crawling without written permission, so keep it small, personal and infrequent.
 
 ---
@@ -54,12 +55,26 @@ python -m app.load    → app/load.py: read JSON → dedupe by id → normalize(
 ## Next steps
 
 ### Phase 3: finish
-Create one command that runs **fetch → filter → normalize → upsert** without having to go through JSON (keeping JSON as an optional debug output). For example, `app/pipeline.py` run with `python -m app.pipeline`.
+`python -m app.pipeline` already runs **fetch → filter → normalize → upsert**. What's left: finish `save_data(ads, vertical)` in `fetch.py` as an optional debug output (`data/cars.json`, `data/mcs.json`), restore the price caps (40,000 / 50,000), and verify.
 
-**Done when:** a single command updates the database from Blocket, and running it twice gives the same row count, an unchanged `first_seen` and an updated `last_seen`.
+**Done when:** running the pipeline twice gives the same row count, an unchanged `first_seen` and an updated `last_seen`.
 
-### Phase 4: schedule updates
-Run the pipeline automatically: cron on the Pi, Task Scheduler on Windows, or APScheduler inside the FastAPI process. Log how many listings were new or updated per run. Optionally mark listings that haven't been seen recently as inactive (`last_seen` older than the last run).
+### Phase 4: schedule updates (Windows Task Scheduler)
+Run the pipeline automatically on the Windows PC. Task Scheduler is the right tool here: it's built in, it runs even when no terminal is open, and the schedule stays separate from the API process.
+
+1. Add a wrapper script `run_pipeline.ps1` in the project root. It changes to the project root, calls the venv's Python directly (no activation needed) and appends output to a log:
+   ```powershell
+   Set-Location $PSScriptRoot
+   New-Item -ItemType Directory -Force logs | Out-Null
+   & .\.venv\Scripts\python.exe -m app.pipeline *>> logs\pipeline.log
+   ```
+2. In Task Scheduler, create a task with a daily trigger (or every few hours). Set the action to `powershell.exe -NoProfile -ExecutionPolicy Bypass -File "<project root>\run_pipeline.ps1"`. Tick "Run task as soon as possible after a scheduled start is missed" in case the PC was asleep.
+3. **Prerequisite:** Postgres must be up when the task runs. Turn on "Start Docker Desktop when you sign in". The `db` service should have `restart: unless-stopped` in `docker-compose.yml` so it comes back with Docker.
+4. Add `logs/` to `.gitignore`.
+
+Also: have `upsert_listings` return how many rows were new and how many were updated, and print that per run so it lands in the log. Optionally mark listings that haven't been seen recently as inactive (`last_seen` older than the start of the current run).
+
+Limitation: runs only happen while the PC is on and you're signed in. That's fine for now; it's one of the inputs to the production-host decision.
 
 ### Phase 5: FastAPI
 - `GET /listings`: paginated, with filters `vertical`, `price_min`/`price_max`, `make`, `location`, and sorting.
@@ -70,8 +85,17 @@ Run the pipeline automatically: cron on the Pi, Task Scheduler on Windows, or AP
 ### Phase 6: React UI
 Vite + React + TS in `frontend/`: a listings table with filters and pagination. Use `VITE_API_URL` for the API address, and enable CORS in FastAPI.
 
-### Later: deployment
-Raspberry Pi 5 with Docker Compose: `db`, `api`, and `web` (nginx). Use an SSD (not an SD card), nightly `pg_dump` backups, and Tailscale for remote access (no public exposure).
+### Later: production (host undecided)
+For now everything runs locally on Windows: Postgres in Docker Desktop, the pipeline via Task Scheduler, FastAPI with `uvicorn`, and React with `npm run dev`.
+
+The host is still to be decided. Options:
+- **Keep it on the Windows PC.** Simplest. It only works while the PC is on.
+- **An always-on home machine** (mini PC, NAS or similar).
+- **A small cloud VPS.** Always on, but it costs money and the API is reachable from the internet, so it needs authentication.
+
+Whichever is chosen, the target shape is the same: Docker Compose with `db`, `api` and `web` (nginx serving the built React app and proxying `/api` to FastAPI). That works on Windows and Linux alike. Things to do regardless of host:
+- **Backups:** a scheduled `docker compose exec -T db pg_dump -U blocky blocky > backups\blocky-<date>.sql`, run by a second Task Scheduler task on Windows.
+- **Remote access:** Tailscale (it has a Windows client) rather than opening ports to the internet.
 
 ---
 

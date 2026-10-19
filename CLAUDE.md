@@ -48,4 +48,6 @@ There are two classes named `Listing`. Import the table as `from app.db import m
 
 ## Environment
 
+The project runs on **Windows 11** (PowerShell, Docker Desktop, `.venv\Scripts\python.exe`). The production host is undecided, so don't assume a Raspberry Pi or Linux: tailor commands and scheduling advice to Windows (e.g. Task Scheduler, not cron), and keep the Python code portable.
+
 `.env` (gitignored) defines `POSTGRES_USER`, `POSTGRES_PASSWORD`, `POSTGRES_DB` (used by docker-compose) and `DATABASE_URL=postgresql+psycopg://...@localhost:5432/blocky`. Adminer connects to server `db` (the compose service name), not `localhost`. If you get `role "blocky" does not exist`, another Postgres is occupying port 5432.

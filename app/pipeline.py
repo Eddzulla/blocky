@@ -7,8 +7,11 @@ def main():
     fetch.get_cars()
     fetch.get_mcs()
 
-    car_ads = fetch.filter_ads(fetch.car_ads)
+    car_ads = fetch.filter_ads(fetch.car_ads) # filter the fetched lists
     mc_ads = fetch.filter_ads(fetch.mc_ads)
+
+    fetch.save_data(car_ads, "cars")
+    fetch.save_data(mc_ads, "mcs")
 
     car_listings = to_listings(car_ads, "car")
     mc_listings = to_listings(mc_ads, "mc")

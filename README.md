@@ -10,29 +10,48 @@ Collects car and motorcycle listings from blocket.se, stores them in PostgreSQL,
 - **API:** FastAPI *(planned)*
 - **Frontend:** React + Vite + TypeScript *(planned)*
 
+## How it works
+
+```
+Blocket search API ──▶ fetch ──▶ filter ──▶ normalize ──▶ upsert ──▶ Postgres (listings table)
+                     app/fetch.py         app/models.py  app/db/crud.py
+```
+
+1. **Fetch:** searches Skåne for used cars (up to 40,000 kr) and motorcycles (up to 50,000 kr). A query is capped at 2,500 results, so larger price ranges are split in half until each part fits. Pages are fetched with a delay between requests.
+2. **Filter:** drops leasing ads whose heading or model specification matches a word in `EXCLUDE`.
+3. **Normalize:** turns each raw ad into a Pydantic `Listing` (price in SEK, mileage in km) and removes duplicate IDs.
+4. **Upsert:** writes all listings to the `listings` table in one `INSERT ... ON CONFLICT (id) DO UPDATE`. `first_seen` is set when a listing is first inserted; `last_seen` is updated on every run.
+
+The data lives in Postgres, in the Docker volume `pgdata`. Raw JSON in `data/` is only an optional local debug copy and is gitignored.
+
 ## Project layout
 
 ```
 app/
-  fetch.py        # fetch listings from Blocket, save to data/*.json
-  models.py       # Pydantic Listing + normalize()
+  pipeline.py     # main entry point: fetch → filter → normalize → upsert
+  fetch.py        # search Blocket, split price ranges, filter leasing ads
+  models.py       # Pydantic Listing, normalize(), to_listings()
   db/
     base.py       # engine, SessionLocal, Base (reads DATABASE_URL)
     models.py     # SQLAlchemy tables
     crud.py       # upsert_listings()
 alembic/          # database migrations
-tests/            # test_normalize.py
-blocky.py         # entry point: fetch and save JSON
+tests/            # test_normalize.py (runs offline against data/cars.json)
+blocky.py         # fetch only, no database (for debugging)
 docker-compose.yml
 ```
 
 ## Setup
 
-```bash
-python3 -m venv .venv
-source .venv/bin/activate          # Windows: .venv\Scripts\activate
+The project is developed and run on **Windows 11** with PowerShell and [Docker Desktop](https://www.docker.com/products/docker-desktop/). Where it will run in production is still open (see [PLAN.md](PLAN.md)).
+
+```powershell
+python -m venv .venv
+.venv\Scripts\Activate.ps1
 pip install blocket-api httpx beautifulsoup4 pydantic sqlalchemy "psycopg[binary]" python-dotenv alembic
 ```
+
+If PowerShell refuses to run `Activate.ps1` ("running scripts is disabled"), run `Set-ExecutionPolicy -Scope CurrentUser RemoteSigned` once. On macOS/Linux, use `python3 -m venv .venv` and `source .venv/bin/activate` instead.
 
 Create `.env` in the project root (not committed):
 
@@ -76,17 +95,37 @@ DATABASE_URL=postgresql+psycopg://blocky:<password>@localhost:5432/blocky
 
 Adminer uses Server `db` because it runs in its own container and reaches Postgres by its service name. Everything outside Docker uses `localhost`. If the connection fails with *role "blocky" does not exist*, another Postgres is probably running on port 5432.
 
+## Running the program
+
+From the project root, with the virtual environment active:
+
+```bash
+docker compose up -d          # 1. start Postgres (and Adminer)
+alembic upgrade head          # 2. create/update tables (first time, or after a new migration)
+python -m app.pipeline        # 3. fetch from Blocket and update the database
+```
+
+When it finishes, it prints how many cars and motorcycles were upserted. A full run takes a few minutes because of the delay between requests. Running it again updates prices and `last_seen` without creating duplicate rows.
+
+Check the result:
+
+```bash
+docker compose exec db psql -U blocky -d blocky -c "SELECT vertical, count(*) FROM listings GROUP BY vertical;"
+```
+
+or browse the table in Adminer at http://localhost:8080.
+
 ## Commands
 
-Run everything from the project root.
+Run everything from the project root. Run modules with `python -m app.<module>`, not `python app/<module>.py`, or you get `ModuleNotFoundError: app`.
 
 ### Pipeline
 
 | Command | What it does |
 |---|---|
-| `python blocky.py` | Fetch listings from Blocket and save to `data/*.json` |
-| `python -m app.load` | Load `data/*.json`, normalize and upsert into Postgres |
-| `python -m tests.test_normalize` | Check that all saved listings normalize without errors |
+| `python -m app.pipeline` | Fetch, filter, normalize and upsert into Postgres |
+| `python blocky.py` | Fetch only, without touching the database |
+| `python -m tests.test_normalize` | Check that all listings in `data/cars.json` normalize without errors (expects `N ok, 0 errors`) |
 
 ### Docker
 
@@ -133,7 +172,7 @@ To change a table: edit `app/db/models.py` → `revision --autogenerate` → rev
 - [x] Fetch listings and save them to JSON
 - [x] Normalize the data with Pydantic
 - [x] Store in Postgres with upserts (`listings` table)
-- [ ] Connect fetch → normalize → upsert in one command
+- [x] Connect fetch → normalize → upsert in one command (`app/pipeline.py`)
 - [ ] Price history table
 - [ ] Schedule updates
 - [ ] FastAPI endpoints

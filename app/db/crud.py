@@ -20,3 +20,6 @@ def upsert_listings(session: Session, listings: list[Listing]) -> None:
         },
     )
     session.execute(stmt)
+
+def get_lisitngs():
+    pass
