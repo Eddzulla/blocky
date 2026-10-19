@@ -1,9 +1,11 @@
 from app import fetch 
 from app.models import to_listings
-from app.db.base import SessionLocal
+from app.db.base import SessionLocal, check_db
 from app.db.crud import upsert_listings
 
 def main():
+    if not check_db():
+        raise SystemExit("Postgres is not reachable. Start it with: docker compose up -d")
     fetch.get_cars()
     fetch.get_mcs()
 
