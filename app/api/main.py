@@ -14,8 +14,8 @@ app.include_router(listings.router)
 @app.get("/health")
 def health(session: Session = Depends(get_db)):
     if not check_db():
-        return {"status": "ok", "db": "NOT OK"}
-    return {"status": "ok", "db": "ok"}
+        return JSONResponse(status_code=503, content={"status": "error", "db": "unreachable"})  
+    return JSONResponse(status_code=200, content={"status": "ok", "db": "ok"})
 
 
 
