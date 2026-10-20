@@ -1,7 +1,5 @@
-.venv/
+.venv
 .env
 data/
 __pycache__/
 .claude/
-metadata.json/
-data/
