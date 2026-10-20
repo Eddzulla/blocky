@@ -13,7 +13,7 @@ car_ads = []
 mc_ads = []
 first_fetch = False
 
-def get_cars(min_price = 0, max_price = 10):
+def get_cars(min_price = 0, max_price = 30000):
     '''Fill up car_ads with ads based on filter criteria'''
     
     cars = api.search_car(
@@ -59,6 +59,7 @@ def _fetch_range_cars(min_price, max_price, ads):
             page=page
         )
         car_ads.extend(res["docs"])
+
     
 
 def _is_excluded(ad):
@@ -66,7 +67,7 @@ def _is_excluded(ad):
     return any(word in text for word in EXCLUDE)
 
 
-def get_mcs(min_price = 0, max_price = 1000):
+def get_mcs(min_price = 0, max_price = 40000):
     '''Fill up car_ads with ads based on filter criteria'''
 
     mcs = api.search_mc(
@@ -107,7 +108,6 @@ def _fetch_range_mcs(min_price, max_price, ads):
             page=page
         )
         mc_ads.extend(res["docs"])
-        save_data()
 
 def filter_ads(ads) -> list:
     filtered = [ad for ad in ads if not _is_excluded(ad)]

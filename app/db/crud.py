@@ -1,4 +1,4 @@
-from sqlalchemy import func
+from sqlalchemy import func, select
 from sqlalchemy.dialects.postgresql import insert
 from sqlalchemy.orm import Session
 
@@ -21,5 +21,44 @@ def upsert_listings(session: Session, listings: list[Listing]) -> None:
     )
     session.execute(stmt)
 
-def get_lisitngs():
-    pass
+def get_listings(
+    session: Session,
+    *,
+    vertical: str,
+    price_min: int | None,
+    price_max: int | None,
+    make: str | None,
+    location: str | None,
+    year: int | None,
+    sort: str,
+    order: str,
+    limit: int,
+    offset: int,
+) -> tuple[list[db.Listing], int]:
+    query = select(db.Listing).where(db.Listing.vertical == vertical)
+    
+    if price_min is not None:
+        query = query.where(db.Listing.price_sek >= price_min)
+    if price_max is not None:
+        query = query.where(db.Listing.price_sek <= price_max)
+    if make is not None:
+        query = query.where(db.Listing.make == make)
+    if location is not None:
+        query = query.where(db.Listing.location == location)
+    if year is not None:
+        query = query.where(db.Listing.year >= year)
+    
+    total = session.scalar(select(func.count()).select_from(query.subquery()))
+    
+    sort_column = {
+        "price": db.Listing.price_sek,
+        "year": db.Listing.year,
+        "mileage": db.Listing.mileage_km,
+        "last_seen": db.Listing.last_seen,
+    }[sort]
+    sort_column = sort_column.desc() if order == "desc" else sort_column.asc()
+    
+    items = session.scalars(
+        query.order_by(sort_column).limit(limit).offset(offset)
+    ).all()
+    return items, total        

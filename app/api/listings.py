@@ -24,15 +24,16 @@ def get_listings(
         price_max: Annotated[int | None, Query(ge=0)] = None,
         make: str | None = None,
         location: str | None = None,
+        year: int | None = None,
         sort: Literal["price", "year", "mileage", "last_seen"] = "last_seen",
         order: Literal["asc", "desc"] = "desc",
         limit: Annotated[int, Query(ge=1, le=200)] = 50,
-        offset: Annotated[int, Query(ge=0)] = None
+        offset: Annotated[int, Query(ge=0)] = 0
 ):
     items, total = crud.get_listings(
         session, vertical=vertical, price_min=price_min, price_max=price_max,
-        make=make, location=location, sort=sort, order=order,
-        limit=limit, offset=offset,
+        make=make, location=location, year=year, sort=sort, order=order,
+        limit=limit, offset=offset, 
     )
     return ListingPage(
         items=[ListingOut.model_validate(i) for i in items],

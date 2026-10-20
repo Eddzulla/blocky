@@ -18,13 +18,13 @@ def normalize(raw: dict, vertical: str) -> Listing:
         id=raw["id"],
         vertical = vertical,
         url=raw["canonical_url"],
-        location=raw["location"],
+        location=raw["location"].lower(),
         price_sek=(raw.get("price") or {}).get("amount"),
         year=raw["year"],
         mileage_km=mileage * 10 if mileage is not None else None,
-        make=raw["make"],
-        model=raw.get("model"),
-        model_specification=raw.get("model_specification"),
+        make=raw["make"].lower(),
+        model=raw.get("model").lower() if raw.get("model") else None,
+        model_specification=raw.get("model_specification").lower() if raw.get("model_specification") else None,
     )
 
 def to_listings(raw_ads: list, vertical: str):
