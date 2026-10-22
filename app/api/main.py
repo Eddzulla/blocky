@@ -4,8 +4,16 @@ from sqlalchemy.orm import Session
 from app.api import listings
 from app.api.deps import get_db
 from app.db.base import check_db
+from fastapi.middleware.cors import CORSMiddleware
 
 app = FastAPI(title="blocky")
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["http://localhost:5173"],
+    allow_methods=["GET"],
+    allow_headers=["*"],
+)
 
 app.include_router(listings.router)
 

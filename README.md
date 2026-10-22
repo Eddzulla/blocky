@@ -10,6 +10,38 @@ Collects car and motorcycle listings from blocket.se, stores them in PostgreSQL,
 - **API:** FastAPI *(planned)*
 - **Frontend:** React + Vite + TypeScript *(planned)*
 
+## Practical commands
+
+Quick reference for day-to-day work. Run everything from the project root unless noted.
+
+**Database**
+```bash
+docker compose up -d          # start Postgres + Adminer
+alembic upgrade head          # create/update tables (first run, or after a new migration)
+docker compose down           # stop (data is kept in the pgdata volume)
+```
+
+**Backend (FastAPI)**
+```bash
+source .venv/bin/activate     # Windows: .venv\Scripts\Activate.ps1
+uvicorn app.api.main:app --reload
+```
+Serves at http://127.0.0.1:8000, interactive docs at http://127.0.0.1:8000/docs.
+
+**Data pipeline** (fetches from Blocket and updates the database)
+```bash
+python -m app.pipeline
+```
+
+**Frontend (React)**
+```bash
+cd frontend
+npm run dev
+```
+Serves at http://localhost:5173.
+
+See [Commands](#commands) below for the full reference (Docker, Alembic, database queries, etc).
+
 ## How it works
 
 ```
