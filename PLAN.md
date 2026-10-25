@@ -6,7 +6,7 @@ For setup and day-to-day commands, see [README.md](README.md).
 
 ---
 
-## Status (2026-10-22)
+## Status (2026-10-25)
 
 | Phase | Status |
 |---|---|
@@ -15,10 +15,12 @@ For setup and day-to-day commands, see [README.md](README.md).
 | 2. Normalize with Pydantic | ✅ Done |
 | 3. Store in Postgres | ✅ Done. `python -m app.pipeline` runs fetch → filter → normalize → upsert; verified stable row counts and `first_seen`/`last_seen` across repeated runs |
 | 4. Schedule updates | ⏸️ Postponed. The pipeline is run manually for now |
-| 5. FastAPI endpoints | ✅ Done. `GET /listings` (filters: `vertical`, `price_min`/`price_max`, `make`, `location`, `year` as a minimum, `sort`/`order`, pagination) and `GET /listings/{id}` |
-| 6. React UI | 🟡 In progress. `frontend/src/api.ts` typed client done; `App.tsx` renders a basic listings table with a car/mc toggle. **Next:** filter inputs, pagination controls, detail view + routing |
+| 5. FastAPI endpoints | ✅ Done. `GET /listings` (filters: `vertical`, `price_min`/`price_max`, `make`, `location`, `year_min`/`year_max`, `sort`/`order`, pagination), `GET /listings/{id}`, `GET /listings/makes` |
+| 6. React UI | ✅ Done. Table with sortable Year/Price/Mileage columns, make dropdown, price/year range sliders, pagination, Reset filters, detail view + routing. Filter/sort/pagination state persists across navigation (lifted to `App.tsx`) |
 
 **Current data:** 1,547 cars and 285 motorcycles (Skåne) in `listings`.
+
+**Open roadmap items:** price history table, scheduled updates — see "Next steps" below.
 
 ---
 
@@ -36,8 +38,8 @@ python blocky.py       → fetch only (debugging); JSON output to data/ is being
 - **Upsert (`app/db/crud.py`):** a single `INSERT ... ON CONFLICT (id) DO UPDATE` for all rows. The update columns are built from the Pydantic fields, so new fields are included automatically. `get_listings()` builds the filtered/sorted/paginated query behind the API.
 - **Migrations (Alembic):** `create_listings`, then `add_vertical_to_listings`. `alembic/env.py` reads `DATABASE_URL` from `.env` and uses `Base.metadata`.
 - **Infrastructure:** `docker-compose.yml` runs `postgres:17` (port 5432, `pgdata` volume) and `adminer` (http://localhost:8080, bound to 127.0.0.1).
-- **API (`app/api/`):** FastAPI app in `main.py` with CORS enabled for `http://localhost:5173` (Vite dev server). `listings.py` holds the router, `schemas.py` the response models (`ListingOut`, `ListingPage`), `deps.py` the DB session dependency.
-- **Frontend (`frontend/`):** Vite + React + TS, ESLint (not oxlint). `src/api.ts` is a typed client (`getListings`, `getListing`) reading `VITE_API_URL` from `.env`. `App.tsx` currently renders a listings table with a vertical toggle.
+- **API (`app/api/`):** FastAPI app in `main.py` with CORS enabled for `http://localhost:5173` (Vite dev server), GET only. `listings.py` holds the router — static routes (`/makes`) registered before the dynamic `/{listing_id}` to avoid being swallowed by it. `schemas.py` has the response models (`ListingOut`, `ListingPage`), `deps.py` the DB session dependency.
+- **Frontend (`frontend/`):** Vite + React + TS, ESLint (not oxlint), `react-router-dom`. `src/api.ts` is a typed client (`getListings`, `getListing`, `getMakes`) reading `VITE_API_URL` from `.env`; interfaces mirror the backend schemas field-for-field. `src/App.tsx` is the persistent router root holding cross-route state (`vertical`, `filters`, `offset`, `sort`, `order`); `src/ListingsPage.tsx` is the `/` route (table, filters, sorting, pagination); `src/ListingDetail.tsx` is `/listings/:id`; `src/RangeSlider.tsx` is a reusable dual-handle slider (two overlapping native range inputs).
 
 ---
 
@@ -51,21 +53,24 @@ python blocky.py       → fetch only (debugging); JSON output to data/ is being
 - **Development moved from Windows 11 to macOS.** The project is portable by design (`.env` config, Postgres in Docker, no hard-coded OS-specific paths), so this was a clean switch. The production host is still undecided.
 - **Docker for Postgres**, via Docker Desktop (for Mac now). On macOS, a Homebrew `postgresql@17` service can grab port 5432 before Docker does, causing `role "blocky" does not exist`; fix is `brew services stop postgresql@17`, not a Docker config change.
 - **Scope kept small:** Skåne, with capped price ranges (cars up to 30,000 kr, motorcycles up to 40,000 kr). Blocket's `robots.txt` prohibits automated crawling without written permission, so keep it small, personal and infrequent.
-- **String fields are normalized to lowercase** (`make`, `model`, `model_specification`, `location`) so API filters can use exact-match equality instead of case-insensitive comparisons. Applies going forward from `normalize()`; existing rows update to lowercase on their next `python -m app.pipeline` run (same `id`, upserted in place).
+- **String fields are normalized to lowercase** (`make`, `model`, `model_specification`, `location`) at ingestion in `normalize()`. However, `get_listings`'s `make` filter and `get_makes` both compare with `func.lower(...)` on the DB side too, rather than trusting all stored rows are already lowercase — rows fetched before this change existed still had mixed case, so relying on ingestion-time lowercasing alone wasn't sufficient.
+- **Year filter is `year_min`/`year_max`**, not a single `year` — mirrors the `price_min`/`price_max` naming convention. Changed from an earlier single minimum-only `year` param once a max-year filter was needed.
+- **Make filter is a dropdown backed by `GET /listings/makes`** (distinct values per vertical), not a free-text input or a hardcoded list — stays correct as the dataset changes.
+- **Price and year filters are dual-handle range sliders** (`RangeSlider.tsx`), not separate min/max inputs. Bounds are fixed, not derived from the data: `PRICE_BOUNDS` (cars 0–30,000 kr, mc 0–40,000 kr, matching the fetch caps) and `YEAR_MIN`/`YEAR_MAX` (1990–current year), both defined in `ListingsPage.tsx`.
+- **Cross-route state (filters/sort/pagination) is lifted to `App.tsx`**, the component that owns `<Routes>`, rather than stored in the URL (`useSearchParams`) or a Context provider. Simplest option that satisfies "don't reset when navigating to a listing and back" without adding a new state-management concept for a two-route app.
+- **Nullable sortable columns sort with `NULLS LAST`** in both directions (`app/db/crud.py`) — Postgres's default `NULLS FIRST` on `DESC` was putting listings with no mileage/price data at the top of a descending sort.
 
 ---
 
 ## Next steps
 
-### Phase 6: React UI (current)
-Done so far: `src/api.ts` (typed client for `getListings`/`getListing`), CORS enabled in `app/api/main.py` for `http://localhost:5173`, and `App.tsx` rendering a listings table with a car/mc toggle.
+Everything in the original roadmap (fetch → Postgres → FastAPI → React UI) is done. What's open now:
 
-Left to do:
-- Filter inputs (price range, make, minimum year) wired to `ListingsQuery` and re-fetched on change.
-- Pagination controls using `total`/`limit`/`offset` from `ListingPage`.
-- A detail view per listing (`GET /listings/{id}`), with routing (e.g. `react-router`) to get there from the table.
+### Price history table (postponed, still open)
+A `price_history` table (`listing_id` FK, `price_sek`, `observed_at`), one row per *price change* detected during upsert, not per fetch. Needs a new Alembic migration and a change to `upsert_listings` to detect and record the change before overwriting `price_sek`.
 
-**Done when:** you can filter, page through, and open a single listing's detail from the browser.
+### Frontend polish (ongoing, no fixed scope)
+Small UX items that come up as they're noticed — e.g. the current CSS pass for a livelier look (color, button/dropdown styling). Not a tracked "phase," just addressed as requested.
 
 ### Phase 4: schedule updates (postponed)
 Still manual (`python -m app.pipeline`) for now. Revisit once the production host is decided — the approach depends on the OS it runs on (e.g. `launchd`/cron on macOS or Linux, Task Scheduler on Windows).
@@ -96,6 +101,9 @@ Whichever is chosen, the target shape is the same: Docker Compose with `db`, `ap
 - `app/__init__.py` and `tests/__init__.py` are missing. Running with `-m` works without them.
 - `upsert_listings` sends everything in one statement. Postgres allows at most 65,535 parameters, so chunk the list (about 1,000 rows per chunk) once there are more than about 6,000 listings.
 - Raw JSON in `data/` contains every field from Blocket. It stays local (`data/` is gitignored); only the normalized fields reach the database.
+- No `requirements.txt` equivalent is needed for the frontend — `frontend/package.json` already serves that purpose.
+- `react-hooks/set-state-in-effect` lint errors on the two data-fetching effects in `ListingsPage.tsx` are expected and left as-is (standard loading-state pattern); see CLAUDE.md.
+- Pagination controls intentionally appear both above and below the table in `ListingsPage.tsx` (not a duplication bug).
 
 ---
 
@@ -103,5 +111,5 @@ Whichever is chosen, the target shape is the same: Docker Compose with `db`, `ap
 
 - Run every command from the project root (`alembic.ini`, `.env` and `docker-compose.yml` live there). Run modules with `python -m app.<module>`.
 - Schema changes: edit `app/db/models.py` → `alembic revision --autogenerate -m "..."` → review the file → `alembic upgrade head`.
-- Secrets only in `.env`, never committed.
-- Working style: the user writes the code. Explain approaches and post snippets in chat rather than editing project files, unless asked.
+- Secrets only in `.env` / `frontend/.env`, never committed.
+- Working style: the user writes most backend code themselves (explain + snippets in chat). Frontend edits are made directly, then verified (`tsc -b --noEmit`, `npm run lint`, functional check) and explained afterward. See CLAUDE.md for the full "Established conventions for new features" list (naming, route gotchas, filter UI patterns) so repeat decisions don't need re-asking.

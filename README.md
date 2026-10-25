@@ -7,8 +7,8 @@ Collects car and motorcycle listings from blocket.se, stores them in PostgreSQL,
 - **Fetching:** [`blocket-api`](https://github.com/dunderrrrrr/blocket_api), httpx
 - **Validation:** Pydantic
 - **Database:** PostgreSQL 17 (Docker), SQLAlchemy, Alembic
-- **API:** FastAPI *(planned)*
-- **Frontend:** React + Vite + TypeScript *(planned)*
+- **API:** FastAPI
+- **Frontend:** React + Vite + TypeScript, react-router-dom, ESLint
 
 ## Practical commands
 
@@ -66,24 +66,30 @@ app/
   db/
     base.py       # engine, SessionLocal, Base (reads DATABASE_URL)
     models.py     # SQLAlchemy tables
-    crud.py       # upsert_listings()
+    crud.py       # get_listings(), get_makes(), upsert_listings()
+  api/
+    main.py       # FastAPI app, CORS
+    listings.py   # router: GET /listings, /listings/{id}, /listings/makes
+    schemas.py    # ListingOut, ListingPage response models
+    deps.py       # DB session dependency
 alembic/          # database migrations
 tests/            # test_normalize.py (runs offline against data/cars.json)
 blocky.py         # fetch only, no database (for debugging)
+frontend/         # Vite + React + TS app (see frontend/src)
 docker-compose.yml
 ```
 
 ## Setup
 
-The project is developed and run on **Windows 11** with PowerShell and [Docker Desktop](https://www.docker.com/products/docker-desktop/). Where it will run in production is still open (see [PLAN.md](PLAN.md)).
+The project is developed and run on **macOS** with [Docker Desktop](https://www.docker.com/products/docker-desktop/). Where it will run in production is still open (see [PLAN.md](PLAN.md)).
 
-```powershell
-python -m venv .venv
-.venv\Scripts\Activate.ps1
-pip install blocket-api httpx beautifulsoup4 pydantic sqlalchemy "psycopg[binary]" python-dotenv alembic
+```bash
+python3 -m venv .venv
+source .venv/bin/activate
+pip install blocket-api httpx beautifulsoup4 pydantic sqlalchemy "psycopg[binary]" python-dotenv alembic fastapi uvicorn
 ```
 
-If PowerShell refuses to run `Activate.ps1` ("running scripts is disabled"), run `Set-ExecutionPolicy -Scope CurrentUser RemoteSigned` once. On macOS/Linux, use `python3 -m venv .venv` and `source .venv/bin/activate` instead.
+On Windows, use `python -m venv .venv` and `.venv\Scripts\Activate.ps1` instead (`Set-ExecutionPolicy -Scope CurrentUser RemoteSigned` once if PowerShell refuses to run it).
 
 Create `.env` in the project root (not committed):
 
@@ -92,6 +98,12 @@ POSTGRES_USER=blocky
 POSTGRES_PASSWORD=<password>
 POSTGRES_DB=blocky
 DATABASE_URL=postgresql+psycopg://blocky:<password>@localhost:5432/blocky
+```
+
+For the frontend, `cd frontend && npm install`, then create `frontend/.env` (not committed):
+
+```
+VITE_API_URL=http://127.0.0.1:8000
 ```
 
 ## Running the database locally
@@ -190,6 +202,20 @@ Run everything from the project root. Run modules with `python -m app.<module>`,
 
 To change a table: edit `app/db/models.py` → `revision --autogenerate` → review the file in `alembic/versions/` → `upgrade head`.
 
+## Frontend
+
+```bash
+cd frontend
+npm install        # first time only
+npm run dev        # http://localhost:5173
+```
+
+Pages (`frontend/src/`):
+- `/` (`ListingsPage.tsx`) — listings table with a car/mc toggle, a make dropdown (backed by `GET /listings/makes`), price and year range sliders (`RangeSlider.tsx`), sortable Year/Price/Mileage column headers, pagination, and a Reset filters button. Filter/sort/pagination state is held in `App.tsx` (the router root) so it survives navigating to a listing and back.
+- `/listings/:id` (`ListingDetail.tsx`) — single listing detail, with a link to the live Blocket ad.
+
+Requires the FastAPI server running at `VITE_API_URL` (CORS is already enabled for `http://localhost:5173`).
+
 ## Notes on Blocket data
 
 - `search_car()` / `search_mc()` take enum lists: `models=[CarModel.HONDA]`, `locations=[Location.SKANE]`.
@@ -205,7 +231,7 @@ To change a table: edit `app/db/models.py` → `revision --autogenerate` → rev
 - [x] Normalize the data with Pydantic
 - [x] Store in Postgres with upserts (`listings` table)
 - [x] Connect fetch → normalize → upsert in one command (`app/pipeline.py`)
+- [x] FastAPI endpoints
+- [x] React UI (table, filters, sorting, pagination, detail view)
 - [ ] Price history table
 - [ ] Schedule updates
-- [ ] FastAPI endpoints
-- [ ] React UI

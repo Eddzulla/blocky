@@ -30,20 +30,27 @@ export interface ListingsQuery{
     vertical: Vertical,
     price_min?: number;
     price_max?: number;
-    make?: string;
+    make?: string[];
     location?: string;
-    year?: number;
+    year_min?: number;
+    year_max?: number;
     sort?: SortField;
     order?: SortOrder;
     limit?: number;
     offset?: number;
+    [key: string]: unknown;
 }
 
 async function request<T>(path: string, params?: Record<string, unknown>): Promise<T> {
     const url = new URL(path, API_URL);
     if(params) {
         for (const [key, value] of Object.entries(params)){
-            if (value !== undefined && value !== null) {
+            if (value === undefined || value === null) continue;
+            if (Array.isArray(value)) {
+                for (const item of value) {
+                    url.searchParams.append(key, String(item));
+                }
+            } else {
                 url.searchParams.set(key, String(value));
             }
         }
@@ -64,5 +71,8 @@ export function getListings(query: ListingsQuery): Promise<ListingPage> {
 
 export function getListing(id: number): Promise<Listing> {
     return request<Listing>(`/listings/${id}`);
+}
 
+export function getMakes(vertical: Vertical): Promise<string[]> {
+    return request<string[]>("/listings/makes", { vertical });
 }

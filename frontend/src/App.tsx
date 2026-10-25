@@ -1,71 +1,39 @@
-import { useEffect, useState } from "react";
-import type { Listing, Vertical } from "./api";
-import { getListings } from "./api";
+import { useState } from "react";
+import { BrowserRouter, Routes, Route } from "react-router-dom";
+import type { SortField, SortOrder, Vertical } from "./api";
+import ListingsPage, { defaultFilters } from "./ListingsPage";
+import ListingDetail from "./ListingDetail";
 
 function App() {
   const [vertical, setVertical] = useState<Vertical>("car");
-  const [listings, setListings] = useState<Listing[]>([]);
-  const [total, setTotal] = useState(0);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
-
-  useEffect(() => {
-    setLoading(true);
-    setError(null);
-
-    getListings({ vertical, limit: 50, offset: 0 })
-      .then((page) => {
-        setListings(page.items);
-        setTotal(page.total);
-      })
-      .catch((err: unknown) => {
-        setError(err instanceof Error ? err.message : "Failed to load listings");
-      })
-      .finally(() => setLoading(false));
-  }, [vertical]);
+  const [filters, setFilters] = useState(defaultFilters("car"));
+  const [offset, setOffset] = useState(0);
+  const [sort, setSort] = useState<SortField>("last_seen");
+  const [order, setOrder] = useState<SortOrder>("desc");
 
   return (
-    <div>
-      <h1>Blocky</h1>
-
-      <select value={vertical} onChange={(e) => setVertical(e.target.value as Vertical)}>
-        <option value="car">Cars</option>
-        <option value="mc">Motorcycles</option>
-      </select>
-
-      {loading && <p>Loading…</p>}
-      {error && <p>Error: {error}</p>}
-
-      {!loading && !error && (
-        <>
-          <p>{total} listings</p>
-          <table>
-            <thead>
-              <tr>
-                <th>Make</th>
-                <th>Model</th>
-                <th>Year</th>
-                <th>Price (SEK)</th>
-                <th>Mileage (km)</th>
-                <th>Location</th>
-              </tr>
-            </thead>
-            <tbody>
-              {listings.map((listing) => (
-                <tr key={listing.id}>
-                  <td>{listing.make}</td>
-                  <td>{listing.model ?? "—"}</td>
-                  <td>{listing.year}</td>
-                  <td>{listing.price_sek ?? "—"}</td>
-                  <td>{listing.mileage_km ?? "—"}</td>
-                  <td>{listing.location}</td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </>
-      )}
-    </div>
+    <BrowserRouter>
+      <Routes>
+        <Route
+          path="/"
+          element={
+            <ListingsPage
+              vertical={vertical}
+              setVertical={setVertical}
+              filters={filters}
+              setFilters={setFilters}
+              offset={offset}
+              setOffset={setOffset}
+              sort={sort}
+              setSort={setSort}
+              order={order}
+              setOrder={setOrder}
+            />
+          }
+        />
+        <Route path="/listings/:id" element={<ListingDetail />} />
+      </Routes>
+    </BrowserRouter>
   );
 }
 
