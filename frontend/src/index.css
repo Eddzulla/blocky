@@ -58,11 +58,7 @@
 }
 
 #root {
-  width: 1126px;
-  max-width: 100%;
-  margin: 0 auto;
-  text-align: center;
-  border-inline: 1px solid var(--border);
+  width: 100%;
   min-height: 100svh;
   display: flex;
   flex-direction: column;
@@ -123,6 +119,8 @@ button:focus-visible {
 
 .btn-link {
   display: inline-block;
+  text-align: center;
+  width: 20%;
   font-size: 15px;
   border: 1px solid var(--border);
   border-radius: 8px;

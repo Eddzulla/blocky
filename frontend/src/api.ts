@@ -1,7 +1,7 @@
 const API_URL = import.meta.env.VITE_API_URL;
 
 export type Vertical = "car" | "mc";
-export type SortField = "price" | "year" | "mileage" | "last_seen";
+export type SortField = "price" | "year" | "mileage" | "make" | "model" | "engine_cc" | "last_seen";
 export type SortOrder = "asc" | "desc";
 
 export interface Listing{
@@ -15,6 +15,8 @@ export interface Listing{
     make: string;
     model: string | null;
     model_specification: string | null;
+    image_urls: string[];
+    engine_cc: number | null;
     first_seen: string;
     last_seen: string;
 }
@@ -30,7 +32,11 @@ export interface ListingsQuery{
     vertical: Vertical,
     price_min?: number;
     price_max?: number;
+    mileage_min?: number;
+    mileage_max?: number;
     make?: string[];
+    model?: string[];
+    search?: string;
     location?: string;
     year_min?: number;
     year_max?: number;
@@ -75,4 +81,8 @@ export function getListing(id: number): Promise<Listing> {
 
 export function getMakes(vertical: Vertical): Promise<string[]> {
     return request<string[]>("/listings/makes", { vertical });
+}
+
+export function getModels(vertical: Vertical, make?: string[]): Promise<string[]> {
+    return request<string[]>("/listings/models", { vertical, make });
 }

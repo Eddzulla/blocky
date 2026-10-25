@@ -1,12 +1,12 @@
-from app import fetch 
+from app import fetch
 from app.models import to_listings
 from app.db.base import SessionLocal, check_db
-from app.db.crud import upsert_listings
+from app.db.crud import upsert_listings, deactivate_missing
 
 def main():
     if not check_db():
         raise SystemExit("Postgres is not reachable. Start it with: docker compose up -d")
-    
+
     fetch.get_cars()
     fetch.get_mcs()
 
@@ -21,9 +21,12 @@ def main():
 
     with SessionLocal() as session:
         upsert_listings(session, car_listings + mc_listings)
+        deactivated_cars = deactivate_missing(session, vertical="car", active_ids=[l.id for l in car_listings])
+        deactivated_mcs = deactivate_missing(session, vertical="mc", active_ids=[l.id for l in mc_listings])
         session.commit()
 
     print(f'Upserted {len(car_listings)} cars and {len(mc_listings)} motorcycles')
+    print(f'Deactivated {deactivated_cars} cars and {deactivated_mcs} motorcycles no longer in the fetch')
 
 if __name__ == "__main__":
     main()

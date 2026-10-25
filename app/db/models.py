@@ -1,6 +1,6 @@
 from datetime import datetime
 
-from sqlalchemy import BigInteger, DateTime, ForeignKey, func
+from sqlalchemy import ARRAY, BigInteger, DateTime, ForeignKey, String, func
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.db.base import Base
@@ -18,5 +18,8 @@ class Listing(Base):
     make: Mapped[str]
     model: Mapped[str | None]
     model_specification: Mapped[str | None]
+    image_urls: Mapped[list[str]] = mapped_column(ARRAY(String), default=list, server_default="{}")
+    engine_cc: Mapped[int | None]
     first_seen: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
     last_seen: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+    is_active: Mapped[bool] = mapped_column(default=True, server_default="true", index=True)

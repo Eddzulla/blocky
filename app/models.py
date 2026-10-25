@@ -11,6 +11,8 @@ class Listing(BaseModel):
     make: str
     model: str | None
     model_specification: str | None
+    image_urls: list[str]
+    engine_cc: int | None
 
 def normalize(raw: dict, vertical: str) -> Listing:
     mileage = raw.get("mileage")
@@ -25,6 +27,8 @@ def normalize(raw: dict, vertical: str) -> Listing:
         make=raw["make"].lower(),
         model=raw.get("model").lower() if raw.get("model") else None,
         model_specification=raw.get("model_specification").lower() if raw.get("model_specification") else None,
+        image_urls=(raw.get("image_urls") or [])[:3],
+        engine_cc=raw.get("volume"),
     )
 
 def to_listings(raw_ads: list, vertical: str):
