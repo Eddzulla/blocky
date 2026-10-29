@@ -26,7 +26,7 @@ function ListingDetail() {
 
       {listing.image_urls.length > 0 && (
         <div className="detail-gallery">
-          {listing.image_urls.map((src) => (
+          {listing.image_urls.slice(0, 6).map((src) => (
             <img key={src} src={src} alt={`${listing.make} ${listing.model ?? ""}`} />
           ))}
         </div>

@@ -1,3 +1,5 @@
+from datetime import datetime
+
 from sqlalchemy import func, or_, select, update
 from sqlalchemy.dialects.postgresql import insert
 from sqlalchemy.orm import Session
@@ -5,22 +7,26 @@ from sqlalchemy.orm import Session
 from app.db import models as db
 from app.models import Listing
 
+UPSERT_CHUNK_SIZE = 1000  # Postgres allows at most 65,535 bind parameters per statement
+
 def upsert_listings(session: Session, listings: list[Listing]) -> None:
     if not listings:
         return
 
-    rows = [listing.model_dump() for listing in listings]
+    for i in range(0, len(listings), UPSERT_CHUNK_SIZE):
+        chunk = listings[i:i + UPSERT_CHUNK_SIZE]
+        rows = [listing.model_dump() for listing in chunk]
 
-    stmt = insert(db.Listing).values(rows)
-    stmt = stmt.on_conflict_do_update(
-        index_elements=[db.Listing.id],
-        set_={
-            **{col: stmt.excluded[col] for col in rows[0] if col != "id"},
-            "last_seen": func.now(),
-            "is_active": True,
-        },
-    )
-    session.execute(stmt)
+        stmt = insert(db.Listing).values(rows)
+        stmt = stmt.on_conflict_do_update(
+            index_elements=[db.Listing.id],
+            set_={
+                **{col: stmt.excluded[col] for col in rows[0] if col != "id"},
+                "last_seen": func.now(),
+                "is_active": True,
+            },
+        )
+        session.execute(stmt)
 
 def get_existing_ids(session: Session, *, vertical: str) -> set[int]:
     '''All ids ever stored for this vertical, active or not — used by the quick-fetch to
@@ -138,3 +144,14 @@ def get_models(session: Session, *, vertical: str, make: list[str] | None = None
     if make:
         query = query.where(func.lower(db.Listing.make).in_([m.lower() for m in make]))
     return list(session.scalars(query.distinct().order_by(lowered)).all())
+
+def record_pipeline_run(session: Session, *, kind: str) -> None:
+    session.add(db.PipelineRun(kind=kind))
+
+def get_last_runs(session: Session) -> dict[str, datetime | None ]:
+    result = {}
+    for kind in ("full", "quick"):
+        result[kind] = session.scalar(
+            select(func.max(db.PipelineRun.finished_at)).where(db.PipelineRun.kind == kind)
+        )
+    return result

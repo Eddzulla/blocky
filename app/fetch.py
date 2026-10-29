@@ -46,7 +46,7 @@ def _get_listings(search_fn, ads: list, label: str, min_price, max_price):
         _get_listings(search_fn, ads, label, mid + 1, max_price)
         return
 
-    print(f"Found {total} ads. Will crawl {(total // 2500) + 1} times.")
+    print(f"Found {total} ads in range {min_price}-{max_price}.")
     _fetch_range(search_fn, ads, label, min_price, max_price, result)
 
 
@@ -60,7 +60,7 @@ def _fetch_range(search_fn, ads: list, label: str, min_price, max_price, first_p
 
     for page in range(2, last + 1):
         print(f"Fetching page: {page}/{last}")
-        time.sleep(random.random() + 1)
+        time.sleep(random.uniform(4, 7))
         res = search_fn(
             locations=locs,
             price_from=min_price,
@@ -109,7 +109,7 @@ def _get_new_listings(search_fn, sort_order, ads: list, label: str, existing_ids
         if page >= last:
             break
         page += 1
-        time.sleep(random.random() + 1)
+        time.sleep(random.uniform(4, 7))
     else:
         print(f"{label}: hit the {MAX_QUICK_FETCH_PAGES}-page safety cap. Found {len(ads)} new ad(s); there may be more.")
 
@@ -119,9 +119,12 @@ def _is_excluded(ad):
         return True
     if "amount_ex_vat" in (ad.get("price") or {}):
         return True
+    if ad.get("organisation_name"):
+        return True
     if _is_private_lease_sublet(ad):
         return True
-    text = f"{ad.get('heading', '')} {ad.get('model_specification', '')}".lower()
+    
+    text = f"{ad.get('heading', '')} {ad.get('model_specification') or ''}".lower()
     return any(word in text for word in EXCLUDE)
 
 

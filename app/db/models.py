@@ -23,3 +23,10 @@ class Listing(Base):
     first_seen: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
     last_seen: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
     is_active: Mapped[bool] = mapped_column(default=True, server_default="true", index=True)
+
+class PipelineRun(Base):
+    __tablename__="pipeline_runs"
+    
+    id: Mapped[int] = mapped_column(primary_key=True)
+    kind: Mapped[str]
+    finished_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())

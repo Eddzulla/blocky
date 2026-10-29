@@ -1,6 +1,7 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { BrowserRouter, Routes, Route } from "react-router-dom";
-import type { SortField, SortOrder, Vertical } from "./api";
+import type { SortField, SortOrder, Vertical, Status } from "./api";
+import { getStatus } from "./api";
 import ListingsPage, { defaultFilters } from "./ListingsPage";
 import ListingDetail from "./ListingDetail";
 
@@ -10,9 +11,18 @@ function App() {
   const [offset, setOffset] = useState(0);
   const [sort, setSort] = useState<SortField>("last_seen");
   const [order, setOrder] = useState<SortOrder>("desc");
+  const [status, setStatus] = useState<Status | null>(null);
+  useEffect(() => { getStatus().then(setStatus).catch(() => {}); }, []);
 
   return (
     <BrowserRouter>
+      {status && (
+      <p className="refresh-status">
+        Full fetch: {status.full_fetch_at ? new Date(status.full_fetch_at).toLocaleString() : "never"}
+        <br></br>
+        Quick fetch: {status.quick_fetch_at ? new Date(status.quick_fetch_at).toLocaleString() : "never"}
+      </p>
+      )}
       <Routes>
         <Route
           path="/"

@@ -1,7 +1,7 @@
 from app import fetch
 from app.models import to_listings
 from app.db.base import SessionLocal, check_db
-from app.db.crud import upsert_listings, deactivate_missing
+from app.db.crud import upsert_listings, deactivate_missing, record_pipeline_run
 
 def main():
     if not check_db():
@@ -23,6 +23,7 @@ def main():
         upsert_listings(session, car_listings + mc_listings)
         deactivated_cars = deactivate_missing(session, vertical="car", active_ids=[l.id for l in car_listings])
         deactivated_mcs = deactivate_missing(session, vertical="mc", active_ids=[l.id for l in mc_listings])
+        record_pipeline_run(session, kind="full")
         session.commit()
 
     print(f'Upserted {len(car_listings)} cars and {len(mc_listings)} motorcycles')

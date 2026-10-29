@@ -27,7 +27,7 @@ def normalize(raw: dict, vertical: str) -> Listing:
         make=raw["make"].lower(),
         model=raw.get("model").lower() if raw.get("model") else None,
         model_specification=raw.get("model_specification").lower() if raw.get("model_specification") else None,
-        image_urls=(raw.get("image_urls") or [])[:3],
+        image_urls=(raw.get("image_urls") or [])[:6],
         engine_cc=raw.get("volume"),
     )
 

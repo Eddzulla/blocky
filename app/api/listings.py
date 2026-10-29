@@ -21,6 +21,12 @@ def get_models(
 ):
     return crud.get_models(session, vertical=vertical, make=make)
 
+@router.get("/status")
+def get_status(session: SessionDep):
+    runs = crud.get_last_runs(session)
+    return {"full_fetch_at": runs["full"], "quick_fetch_at": runs["quick"]}
+    
+
 @router.get("/{listing_id}", response_model=ListingOut)
 def get_listing(listing_id: int, session: SessionDep):
     listing = session.get(db.Listing, listing_id)
@@ -57,3 +63,4 @@ def get_listings(
         items=[ListingOut.model_validate(i) for i in items],
         total=total, limit=limit, offset=offset,
     )
+    

@@ -1,4 +1,4 @@
-import { useEffect, useState, type Dispatch, type SetStateAction } from "react";
+import { useEffect, useRef, useState, type Dispatch, type SetStateAction } from "react";
 import type { Listing, SortField, SortOrder, Vertical } from "./api";
 import { getListings, getMakes } from "./api";
 import { Link } from "react-router-dom";
@@ -75,6 +75,8 @@ function ListingsPage({
 
   const [makes, setMakes] = useState<string[]>([]);
   const [makesError, setMakesError] = useState<string | null>(null);
+  const [makesOpen, setMakesOpen] = useState(false);
+  const makesRef = useRef<HTMLDivElement>(null);
   const [listings, setListings] = useState<Listing[]>([]);
   const [total, setTotal] = useState(0);
   const [loading, setLoading] = useState(true);
@@ -118,6 +120,17 @@ function ListingsPage({
       })
       .finally(() => setLoading(false));
   }, [vertical, filters, offset, sort, order]);
+
+  useEffect(() => {
+    if (!makesOpen) return;
+    function handleClickOutside(e: MouseEvent) {
+      if (makesRef.current && !makesRef.current.contains(e.target as Node)) {
+        setMakesOpen(false);
+      }
+    }
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, [makesOpen]);
 
   function applyFilters(){
     setOffset(0);
@@ -203,22 +216,7 @@ function ListingsPage({
           onKeyDown={(e) => { if (e.key === "Enter") applyFilters(); }}
         />
 
-        <div className="facet-filter">
-          <span>Makes{make.length > 0 ? ` (${make.length} selected)` : ""}</span>
-          <div className="facet-grid">
-            {makes.map((m) => (
-              <button
-                key={m}
-                type="button"
-                className={make.includes(m) ? "facet-pill selected" : "facet-pill"}
-                onClick={() => toggleMake(m)}
-              >
-                {m}
-              </button>
-            ))}
-          </div>
-          {makesError && <span className="filters-error">Couldn't load makes: {makesError}</span>}
-        </div>
+        
 
         <RangeSlider
           label="Price"
@@ -254,7 +252,35 @@ function ListingsPage({
 
         <button className="btn-primary" onClick={applyFilters}>Apply</button>
         <button onClick={resetFilters}>Reset filters</button>
+        
+        <div className="facet-filter" ref={makesRef}>
+          <button
+            type="button"
+            className="facet-toggle"
+            onClick={() => setMakesOpen((open) => !open)}
+          >
+            Makes{make.length > 0 ? ` (${make.length} selected)` : ""}{makesOpen ? " ▲" : " ▼"}
+          </button>
+          {makesOpen && (
+            <div className="facet-dropdown">
+              <div className="facet-grid">
+                {makes.map((m) => (
+                  <button
+                    key={m}
+                    type="button"
+                    className={make.includes(m) ? "facet-pill selected" : "facet-pill"}
+                    onClick={() => toggleMake(m)}
+                  >
+                    {m}
+                  </button>
+                ))}
+              </div>
+            </div>
+          )}
+          {makesError && <span className="filters-error">Couldn't load makes: {makesError}</span>}
+        </div>
       </div>
+      
 
       {loading && <p>Loading…</p>}
       {error && <p>Error: {error}</p>}

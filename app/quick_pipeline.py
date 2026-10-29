@@ -1,7 +1,7 @@
 from app import fetch
 from app.models import to_listings
 from app.db.base import SessionLocal, check_db
-from app.db.crud import upsert_listings, get_existing_ids
+from app.db.crud import upsert_listings, get_existing_ids, record_pipeline_run
 
 def main():
     if not check_db():
@@ -25,6 +25,7 @@ def main():
 
     with SessionLocal() as session:
         upsert_listings(session, car_listings + mc_listings)
+        record_pipeline_run(session, kind="quick")
         session.commit()
 
     print(f'Quick-fetch: upserted {len(car_listings)} new cars and {len(mc_listings)} new motorcycles')

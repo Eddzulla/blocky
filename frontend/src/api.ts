@@ -29,7 +29,7 @@ export interface ListingPage{
 }
 
 export interface ListingsQuery{
-    vertical: Vertical,
+    vertical: Vertical;
     price_min?: number;
     price_max?: number;
     mileage_min?: number;
@@ -46,6 +46,12 @@ export interface ListingsQuery{
     offset?: number;
     [key: string]: unknown;
 }
+
+export interface Status{
+    full_fetch_at: string | null;
+    quick_fetch_at: string | null;
+}
+
 
 async function request<T>(path: string, params?: Record<string, unknown>): Promise<T> {
     const url = new URL(path, API_URL);
@@ -85,4 +91,8 @@ export function getMakes(vertical: Vertical): Promise<string[]> {
 
 export function getModels(vertical: Vertical, make?: string[]): Promise<string[]> {
     return request<string[]>("/listings/models", { vertical, make });
+}
+
+export function getStatus(): Promise<Status> {
+    return request("/listings/status");
 }
