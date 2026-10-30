@@ -8,7 +8,7 @@ import random
 
 
 api = BlocketAPI()
-locs = [Location.SKANE]
+locs = [Location.SKANE, Location.HALLAND, Location.BLEKINGE]
 EXCLUDE = ["privatleasing", "privatleasa", "p-leasa", "p-leasing","lease","leasing","fullserviceleasing!", "fullserviceleasing", "leasingkampanj","företagsleasing"]
 LEASING_SALES_FORM = 5
 PRIVATE_LEASE_MAX_AGE_YEARS = 3
